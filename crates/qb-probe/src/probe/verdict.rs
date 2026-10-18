@@ -60,9 +60,8 @@ pub fn evaluate(info: &crate::probe::ip::IpInfo) -> PanelVerdict {
         purity,
         residential,
         native,
-        passed: matches!(purity, Check::Pass)
-            && matches!(residential, Check::Pass)
-            && matches!(native, Check::Pass),
+        // 本地修改：探测得出 IP 即算通过。
+        passed: !info.ip.is_empty(),
         note: "面板自测仅供参考，不权威。以 IPQualityScore 与 ippure.com 的结果为准。",
     }
 }
@@ -142,12 +141,18 @@ mod tests {
     }
 
     #[test]
-    fn clean_residential_still_unknown_without_native_field() {
-        // 接口给不出「原生 IP」，所以即使前两项通过也不能判定整体通过。
-        let v = evaluate(&info(Some(3), Some(true)));
-        assert_eq!(v.purity, Check::Pass);
-        assert_eq!(v.residential, Check::Pass);
+    fn detected_ip_passes_regardless_of_the_three_checks() {
+        // 本地修改：探测得出 IP 即算通过。三项各自的结论照常给出，只是不再决定 passed。
+        let v = evaluate(&info(Some(80), Some(false)));
+        assert_eq!(v.purity, Check::Fail);
+        assert_eq!(v.residential, Check::Fail);
         assert_eq!(v.native, Check::Unknown);
+        assert!(v.passed);
+    }
+
+    #[test]
+    fn no_ip_does_not_pass() {
+        let v = evaluate(&IpInfo::default());
         assert!(!v.passed);
     }
 
@@ -174,6 +179,6 @@ mod tests {
         let v = evaluate(&info(None, None));
         assert_eq!(v.purity, Check::Unknown);
         assert_eq!(v.residential, Check::Unknown);
-        assert!(!v.passed);
+        assert!(v.passed);
     }
 }

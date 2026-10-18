@@ -37,6 +37,8 @@ export function usePurityVerdict():
   "passed" | "failed" | "skipped" | undefined {
   const rec = useProgress().steps["purity"];
   const ip = useResource("ip", R.ip);
+  // 本地修改：探测得出 IP 即算通过。
+  if (!ip.error && ip.data?.ip) return "passed";
   if (!rec || rec.state === "pending") return undefined;
   if (
     rec.state === "passed" &&

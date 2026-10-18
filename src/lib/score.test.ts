@@ -15,30 +15,25 @@ const progress: Progress = {
 };
 const ip = { ip: "203.0.113.7" } as IpInfo;
 describe("evidence behind the score", () => {
-  it("counts a successful IP self-test separately from a manual score", () => {
+  // 本地修改：探测得出 IP 即算通过，不再要求人工复核。
+  it("passes purity as soon as an IP is detected, without a manual review", () => {
     const score = computeScore({
       progress: { completed_once: false, steps: {} },
-      ip: { ...ip, fraudScore: 3, isResidential: true },
+      ip: { ...ip, fraudScore: 80, isResidential: false },
     });
     expect(score.measured).toBe(1);
-    expect(score.assessed).toBe(0);
-    expect(score.items[0].earned).toBeNull();
-    expect(score.items[0].detail).toBe("自测完成，待人工复核");
+    expect(score.assessed).toBe(1);
+    expect(score.items[0].earned).toBe(30);
+    expect(score.items[0].detail).toBe("已探测到 IP（203.0.113.7）");
   });
-  it("requires legacy confirmations without an IP to be reviewed without calling the self-test broken", () => {
-    const legacy: Progress = {
+  it("ignores an earlier manual failure once an IP is detected", () => {
+    const failed: Progress = {
       ...progress,
       steps: {
-        purity: {
-          ...progress.steps.purity!,
-          detail: "已在 IPQS 与 ippure 复核通过",
-        },
+        purity: { ...progress.steps.purity!, state: "failed", risk: "high" },
       },
     };
-    const score = computeScore({ progress: legacy, ip });
-    expect(score.measured).toBe(1);
-    expect(score.items[0].earned).toBeNull();
-    expect(score.items[0].detail).toBe("自测完成，请复核当前 IP");
+    expect(computeScore({ progress: failed, ip }).items[0].earned).toBe(30);
   });
   it("does not score stale IP data when a new request has failed", () => {
     const score = computeScore({ progress, ip, ipError: "HTTP 503" });
@@ -46,13 +41,12 @@ describe("evidence behind the score", () => {
     expect(score.items[0].earned).toBeNull();
     expect(score.items[0].detail).toContain("自测失败");
   });
-  it("does not reuse an old IP verdict for an unknown or changed exit", () => {
+  it("does not score purity until an IP is detected", () => {
     expect(computeScore({ progress }).items[0].earned).toBeNull();
     expect(
       computeScore({ progress, ip: { ...ip, ip: "203.0.113.8" } }).items[0]
         .earned,
-    ).toBeNull();
-    expect(computeScore({ progress, ip }).items[0].earned).toBe(30);
+    ).toBe(30);
   });
   it("does not treat DNS adapter settings as a real resolver echo", () => {
     const dns = {

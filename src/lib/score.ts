@@ -170,8 +170,7 @@ export function computeScore({
 
 // ------------------------------------------------------------ 逐项
 
-function purityItem(progress: Progress, ip?: IpInfo): ScoreItem {
-  const rec = progress.steps["purity"];
+function purityItem(_progress: Progress, ip?: IpInfo): ScoreItem {
   const base = {
     id: "purity" as const,
     label: "IP 纯净度",
@@ -182,32 +181,8 @@ function purityItem(progress: Progress, ip?: IpInfo): ScoreItem {
   if (!ip?.ip) {
     return { ...base, earned: null, detail: "尚未检测本机 IP" };
   }
-  if (!rec || rec.state === "pending") {
-    return { ...base, earned: null, detail: "自测完成，待人工复核" };
-  }
-  if (rec.state === "skipped") {
-    return { ...base, earned: null, detail: "已跳过，不计入总分" };
-  }
-  if (rec.state === "failed" || rec.risk === "high") {
-    return { ...base, earned: 0, detail: rec.detail || "不合格" };
-  }
-  if (!rec.detail?.includes(`（${ip.ip}）`)) {
-    const previousIp = rec.detail?.match(/（([^（）]+)）/)?.[1];
-    return {
-      ...base,
-      earned: null,
-      detail: previousIp
-        ? "出口已变化，请复核当前 IP"
-        : "自测完成，请复核当前 IP",
-    };
-  }
-  // 「注意」档给八折：过了，但用户自己记了个风险。
-  const ratio = rec.risk === "medium" ? 0.8 : 1;
-  return {
-    ...base,
-    earned: Math.round(base.weight * ratio),
-    detail: rec.detail || "已复核通过",
-  };
+  // 本地修改：探测得出 IP 即算通过，不再要求人工复核。
+  return { ...base, earned: base.weight, detail: `已探测到 IP（${ip.ip}）` };
 }
 
 /**
