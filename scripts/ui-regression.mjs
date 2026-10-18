@@ -926,7 +926,11 @@ try {
     await page.locator(".official-score").innerText(),
     /已测 5\/5 项/,
   );
-  assert.match(await page.locator(".scorecell").first().innerText(), /已自测/);
+  // 本地修改：探测得出 IP 即算通过，这一格直接拿满 30 分，不再显示「已自测」。
+  assert.match(
+    await page.locator(".scorecell").first().innerText(),
+    /已探测到 IP/,
+  );
   assert.match(
     await page.locator(".scorecell").first().innerText(),
     /IPPure.*住宅/,
